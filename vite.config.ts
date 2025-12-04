@@ -6,8 +6,8 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     define: {
-      // Polyfill process.env.API_KEY for the GenAI SDK
-      'process.env.API_KEY': JSON.stringify(env.API_KEY)
+      // Securely inject the API key as a global string constant during build
+      '__API_KEY__': JSON.stringify(env.API_KEY || '')
     }
   };
 });

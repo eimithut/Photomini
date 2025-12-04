@@ -1,14 +1,22 @@
 import { GoogleGenAI } from "@google/genai";
 
-// Declaration for Vite's define replacement
-declare const process: { env: { API_KEY: string } };
+// Declare the global constant injected by Vite
+declare const __API_KEY__: string;
 
 export const editImageWithPhotominiAI = async (
   imageBase64: string,
   prompt: string
 ): Promise<string> => {
-  // Create new instance using the environment key
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  
+  // Validation check
+  if (typeof __API_KEY__ === 'undefined' || !__API_KEY__) {
+    throw new Error(
+      "API Key is missing. If you are on Cloudflare Pages, make sure you added the 'API_KEY' environment variable and then TRIGGERED A NEW BUILD (Retry Deployment). The key is baked in at build time."
+    );
+  }
+
+  // Create new instance using the injected key
+  const ai = new GoogleGenAI({ apiKey: __API_KEY__ });
   
   // Clean base64 string if it contains metadata header
   const cleanBase64 = imageBase64.split(',')[1] || imageBase64;
@@ -47,8 +55,8 @@ export const editImageWithPhotominiAI = async (
     }
 
     throw new Error("No image data found in response");
-  } catch (error) {
+  } catch (error: any) {
     console.error("Photomini AI API Error:", error);
-    throw error;
+    throw new Error(error.message || "Failed to contact Photomini AI");
   }
 };

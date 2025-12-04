@@ -277,7 +277,6 @@ export const PaintCanvas = forwardRef<PaintCanvasRef, PaintCanvasProps>(({
     };
   };
 
-  // Tools that require the "Snapshot + Stroke Buffer" approach
   const isComplexTool = (t: ManualToolType) => {
     return ['invert', 'desaturate', 'tint', 'lighten', 'darken'].includes(t);
   };
@@ -343,7 +342,6 @@ export const PaintCanvas = forwardRef<PaintCanvasRef, PaintCanvasProps>(({
     }
     const tCtx = tempC.getContext('2d');
     
-    // Safety check for source drawing dimensions
     if (tCtx) {
       tCtx.clearRect(0, 0, sW, sH);
       tCtx.filter = `blur(${blurAmount}px)`;
@@ -362,7 +360,6 @@ export const PaintCanvas = forwardRef<PaintCanvasRef, PaintCanvasProps>(({
     const size = settings.size;
     const pixelSize = Math.max(2, settings.intensity);
     
-    // Bounds for the brush area
     const startX = Math.max(0, Math.floor(cx - size/2));
     const startY = Math.max(0, Math.floor(cy - size/2));
     const endX = Math.min(ctx.canvas.width, Math.ceil(cx + size/2));
@@ -372,27 +369,22 @@ export const PaintCanvas = forwardRef<PaintCanvasRef, PaintCanvasProps>(({
     const h = endY - startY;
     if (w <= 0 || h <= 0) return;
 
-    // Optimized: Grab entire brush area data once
     const imageData = ctx.getImageData(startX, startY, w, h);
     const data = imageData.data;
     
-    // Align grid to global coordinates
     const gridStartX = Math.floor(startX / pixelSize) * pixelSize;
     const gridStartY = Math.floor(startY / pixelSize) * pixelSize;
 
     for (let py = gridStartY; py < endY; py += pixelSize) {
         for (let px = gridStartX; px < endX; px += pixelSize) {
-            // Check if block center is within brush circle
             const centerX = px + pixelSize/2;
             const centerY = py + pixelSize/2;
             const dist = Math.sqrt(Math.pow(centerX - cx, 2) + Math.pow(centerY - cy, 2));
             if (dist > size/2) continue;
 
-            // Sample color from local image data
             const sampleX = Math.floor(centerX) - startX;
             const sampleY = Math.floor(centerY) - startY;
             
-            // Boundary check for sample
             if (sampleX < 0 || sampleX >= w || sampleY < 0 || sampleY >= h) continue;
 
             const i = (sampleY * w + sampleX) * 4;
@@ -420,7 +412,6 @@ export const PaintCanvas = forwardRef<PaintCanvasRef, PaintCanvasProps>(({
     const prevY = lastPos.current ? lastPos.current.y : y;
 
     if (isComplexTool(tool)) {
-      // --- COMPLEX TOOLS (Buffered) ---
       const { snap, stroke } = ensureBufferCanvases(canvas.width, canvas.height);
       const strokeCtx = stroke.getContext('2d');
       if (!strokeCtx) return;
@@ -467,7 +458,6 @@ export const PaintCanvas = forwardRef<PaintCanvasRef, PaintCanvasProps>(({
       ctx.globalAlpha = 1.0;
     } 
     else {
-      // --- SIMPLE TOOLS ---
       ctx.save();
       
       if (tool === 'brush') {
@@ -477,8 +467,6 @@ export const PaintCanvas = forwardRef<PaintCanvasRef, PaintCanvasProps>(({
         applyCensor(ctx, x, y, prevX, prevY);
       }
       else {
-        // Stamp Tools: Eraser, Blur, Pixelate
-        // Use interpolation loop to fill gaps
         const dist = Math.hypot(x - prevX, y - prevY);
         const angle = Math.atan2(y - prevY, x - prevX);
         const step = Math.max(1, settings.size / 4); 
