@@ -1,5 +1,8 @@
 import { GoogleGenAI } from "@google/genai";
 
+// Declaration for Vite's define replacement
+declare const process: { env: { API_KEY: string } };
+
 // Ensure we have the user's API key before calling
 export const ensureApiKey = async (): Promise<boolean> => {
   // Use any cast to avoid type conflicts with global window definitions
