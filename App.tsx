@@ -1,17 +1,16 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Upload, Download, RotateCw, Wand2, RefreshCcw, Trash2, Image as ImageIcon, Sliders, Zap, MonitorPlay, Info, ShieldCheck, Settings, X, Save, Hand, Paintbrush, Eraser, Grid3X3, Droplets, EyeOff, Sun, Moon, ScanFace, UserX, VenetianMask, BarChart3, Palette, Ghost, ArrowLeftRight, Check, Grid } from 'lucide-react';
+import { Upload, Download, RotateCw, Wand2, RefreshCcw, Trash2, Image as ImageIcon, Sliders, Zap, MonitorPlay, Info, ShieldCheck, Settings, X, Save, Hand, Paintbrush, Eraser, Grid3X3, Droplets, EyeOff, Sun, Moon, ScanFace, UserX, VenetianMask, BarChart3, Palette, Ghost, ArrowLeftRight, Check, Grid, Scale } from 'lucide-react';
 import { Button, ThemeColor } from './components/Button';
 import { Slider } from './components/Slider';
 import { PaintCanvas } from './components/PaintCanvas';
 import { readFileAsBase64, applyFiltersToImage, downloadImage } from './services/imageUtils';
-import { editImageWithPhotominiAI, ImageResolution, ModelType } from './services/geminiService';
+import { editImageWithPhotominiAI } from './services/geminiService';
 import { detectFaces } from './services/faceDetectionService';
 import { FilterState, DEFAULT_FILTERS, ManualToolType, BrushSettings, DEFAULT_BRUSH_SETTINGS, FaceDetection, PaintCanvasRef, FaceEffectType } from './types';
 
 interface AppSettings {
   exportFormat: 'png' | 'jpeg';
   filenamePrefix: string;
-  defaultModel: ModelType;
   themeColor: ThemeColor;
   showGrid: boolean;
 }
@@ -19,7 +18,6 @@ interface AppSettings {
 const DEFAULT_SETTINGS: AppSettings = {
   exportFormat: 'png',
   filenamePrefix: 'photomini-edit',
-  defaultModel: 'standard',
   themeColor: 'yellow',
   showGrid: false,
 };
@@ -46,8 +44,6 @@ export default function App() {
   
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const [aiPrompt, setAiPrompt] = useState('');
-  const [resolution, setResolution] = useState<ImageResolution>('1K');
-  const [modelType, setModelType] = useState<ModelType>('standard');
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState<'adjust' | 'manual' | 'ai'>('adjust');
   const [error, setError] = useState<string | null>(null);
@@ -63,6 +59,7 @@ export default function App() {
 
   const [showSettings, setShowSettings] = useState(false);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+  const [settingsTab, setSettingsTab] = useState<'general' | 'legal'>('general');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -93,7 +90,6 @@ export default function App() {
       try {
         const parsed = JSON.parse(savedSettings);
         setSettings({ ...DEFAULT_SETTINGS, ...parsed });
-        setModelType(parsed.defaultModel || 'standard');
       } catch (e) {
         console.error("Failed to parse settings", e);
       }
@@ -186,8 +182,8 @@ export default function App() {
   const handleAiEdit = async () => {
     if (!baseImage || !aiPrompt.trim()) return;
 
-    if (modelType === 'standard' && dailyUsage >= DAILY_LIMIT) {
-       setError("Daily limit of 250 requests reached. Please try again tomorrow or switch to Pro.");
+    if (dailyUsage >= DAILY_LIMIT) {
+       setError("Daily limit of 250 requests reached. Please try again tomorrow.");
        return;
     }
 
@@ -195,7 +191,7 @@ export default function App() {
     setError(null);
     try {
       const flattenedImage = await applyFiltersToImage(baseImage, filters, 'image/png');
-      const newImage = await editImageWithPhotominiAI(flattenedImage, aiPrompt, resolution, modelType);
+      const newImage = await editImageWithPhotominiAI(flattenedImage, aiPrompt);
       
       setBaseImage(newImage);
       setCheckPointImage(newImage);
@@ -204,9 +200,7 @@ export default function App() {
       setAiPrompt('');
       setDetectedFaces([]);
 
-      if (modelType === 'standard') {
-        incrementUsage();
-      }
+      incrementUsage();
 
     } catch (err: any) {
       setError(err.message || "Failed to generate AI edit. Please try again.");
@@ -244,7 +238,6 @@ export default function App() {
   const getBgClass = () => `bg-${theme}-500`;
   const getBorderClass = () => `border-${theme}-500`;
   
-  // Available colors for the picker
   const themeColors: ThemeColor[] = ['yellow', 'blue', 'green', 'red', 'purple', 'pink', 'orange', 'cyan'];
 
   return (
@@ -253,124 +246,140 @@ export default function App() {
       {/* --- Settings Modal --- */}
       {showSettings && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-           <div className="bg-[#18181b] border border-zinc-700 rounded-xl shadow-2xl w-full max-w-md m-4 overflow-hidden animate-in zoom-in-95 duration-200">
-              <div className="flex items-center justify-between p-4 border-b border-zinc-700">
+           <div className="bg-[#18181b] border border-zinc-700 rounded-xl shadow-2xl w-full max-w-md m-4 overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[85vh]">
+              <div className="flex items-center justify-between p-4 border-b border-zinc-700 shrink-0">
                  <h3 className={`font-bold text-white flex items-center gap-2`}>
-                   <Settings size={18} className={getTextClass()} /> Application Settings
+                   <Settings size={18} className={getTextClass()} /> Settings
                  </h3>
                  <button onClick={() => setShowSettings(false)} className="text-zinc-400 hover:text-white transition-colors">
                     <X size={20} />
                  </button>
               </div>
-              
-              <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
-                 {/* Theme Color */}
-                 <div className="space-y-3">
-                    <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Interface Theme</label>
-                    <div className="flex flex-wrap gap-3">
-                       {themeColors.map(color => (
-                          <button
-                             key={color}
-                             onClick={() => updateSettings({ themeColor: color })}
-                             className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-transform hover:scale-110 ${settings.themeColor === color ? 'border-white' : 'border-transparent'}`}
-                             style={{ backgroundColor: THEME_HEX_MAP[color] }}
-                          >
-                             {settings.themeColor === color && <Check size={14} className="text-white mix-blend-difference" />}
-                          </button>
-                       ))}
-                    </div>
-                 </div>
 
-                 {/* Display Options */}
-                 <div className="space-y-3">
-                    <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Display</label>
-                    <label className="flex items-center justify-between p-3 rounded-lg bg-zinc-800/50 border border-zinc-700/50 cursor-pointer hover:bg-zinc-800 transition-colors">
-                        <span className="text-sm text-zinc-200">Show Grid Overlay</span>
-                        <div className={`w-10 h-5 rounded-full p-0.5 transition-colors ${settings.showGrid ? getBgClass() : 'bg-zinc-600'}`}>
-                           <div className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${settings.showGrid ? 'translate-x-5' : 'translate-x-0'}`}></div>
-                           <input 
-                              type="checkbox" 
-                              checked={settings.showGrid}
-                              onChange={(e) => updateSettings({ showGrid: e.target.checked })}
-                              className="hidden"
-                           />
-                        </div>
-                    </label>
-                 </div>
-
-                 {/* Export Format */}
-                 <div className="space-y-3">
-                    <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Default Export Format</label>
-                    <div className="grid grid-cols-2 gap-3">
-                       <button 
-                         onClick={() => updateSettings({ exportFormat: 'png' })}
-                         className={`flex items-center justify-center p-3 rounded-lg border transition-all ${settings.exportFormat === 'png' ? `bg-${theme}-500/10 ${getBorderClass()} ${getTextClass()}` : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-600'}`}
-                       >
-                          <span className="font-bold">PNG</span>
-                          <span className="ml-2 text-xs opacity-70">High Quality</span>
-                       </button>
-                       <button 
-                         onClick={() => updateSettings({ exportFormat: 'jpeg' })}
-                         className={`flex items-center justify-center p-3 rounded-lg border transition-all ${settings.exportFormat === 'jpeg' ? `bg-${theme}-500/10 ${getBorderClass()} ${getTextClass()}` : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-600'}`}
-                       >
-                          <span className="font-bold">JPEG</span>
-                          <span className="ml-2 text-xs opacity-70">Small Size</span>
-                       </button>
-                    </div>
-                 </div>
-
-                 {/* Filename Prefix */}
-                 <div className="space-y-3">
-                     <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Default Filename Prefix</label>
-                     <div className="relative">
-                        <input 
-                           type="text" 
-                           value={settings.filenamePrefix}
-                           onChange={(e) => updateSettings({ filenamePrefix: e.target.value })}
-                           className={`w-full bg-zinc-800 border-zinc-700 rounded-lg p-3 text-sm text-white focus:ring-1 focus:ring-${theme}-500 focus:border-${theme}-500 outline-none`}
-                           placeholder="e.g. photomini-edit"
-                        />
-                        <div className="absolute right-3 top-3.5 text-xs text-zinc-500 pointer-events-none">
-                           {settings.filenamePrefix}-{new Date().getMinutes()}.{settings.exportFormat}
-                        </div>
-                     </div>
-                 </div>
-
-                 {/* Default Model */}
-                 <div className="space-y-3">
-                     <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Startup Model</label>
-                     <div className="space-y-2">
-                        <label className="flex items-center gap-3 p-3 rounded-lg bg-zinc-800/50 border border-zinc-700/50 cursor-pointer hover:bg-zinc-800 transition-colors">
-                           <input 
-                              type="radio" 
-                              name="defaultModel"
-                              checked={settings.defaultModel === 'standard'}
-                              onChange={() => updateSettings({ defaultModel: 'standard' })}
-                              className={`w-4 h-4 ${getTextClass()} bg-zinc-700 border-zinc-600 focus:ring-${theme}-500 focus:ring-offset-zinc-800`}
-                           />
-                           <div>
-                              <div className="text-sm font-medium text-zinc-200">Photomini Std</div>
-                              <div className="text-xs text-zinc-500">Fast, free usage, 1K limit</div>
-                           </div>
-                        </label>
-                        <label className="flex items-center gap-3 p-3 rounded-lg bg-zinc-800/50 border border-zinc-700/50 cursor-pointer hover:bg-zinc-800 transition-colors">
-                           <input 
-                              type="radio" 
-                              name="defaultModel"
-                              checked={settings.defaultModel === 'pro'}
-                              onChange={() => updateSettings({ defaultModel: 'pro' })}
-                              className={`w-4 h-4 ${getTextClass()} bg-zinc-700 border-zinc-600 focus:ring-${theme}-500 focus:ring-offset-zinc-800`}
-                           />
-                           <div>
-                              <div className="text-sm font-medium text-zinc-200">Photomini Pro</div>
-                              <div className="text-xs text-zinc-500">4K Support, Paid API Key</div>
-                           </div>
-                        </label>
-                     </div>
-                 </div>
+              {/* Settings Tabs */}
+              <div className="flex border-b border-zinc-700 shrink-0">
+                  <button 
+                     onClick={() => setSettingsTab('general')}
+                     className={`flex-1 py-3 text-sm font-medium transition-colors ${settingsTab === 'general' ? `text-white bg-zinc-800 border-b-2 ${getBorderClass()}` : 'text-zinc-400 hover:text-zinc-200'}`}
+                  >
+                     General
+                  </button>
+                  <button 
+                     onClick={() => setSettingsTab('legal')}
+                     className={`flex-1 py-3 text-sm font-medium transition-colors ${settingsTab === 'legal' ? `text-white bg-zinc-800 border-b-2 ${getBorderClass()}` : 'text-zinc-400 hover:text-zinc-200'}`}
+                  >
+                     Legal & Privacy
+                  </button>
               </div>
               
-              <div className="p-4 bg-zinc-800/50 border-t border-zinc-700 flex justify-end">
+              <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar flex-1">
+                 {settingsTab === 'general' ? (
+                   <>
+                     {/* Theme Color */}
+                     <div className="space-y-3">
+                        <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Interface Theme</label>
+                        <div className="flex flex-wrap gap-3">
+                           {themeColors.map(color => (
+                              <button
+                                 key={color}
+                                 onClick={() => updateSettings({ themeColor: color })}
+                                 className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-transform hover:scale-110 ${settings.themeColor === color ? 'border-white' : 'border-transparent'}`}
+                                 style={{ backgroundColor: THEME_HEX_MAP[color] }}
+                              >
+                                 {settings.themeColor === color && <Check size={14} className="text-white mix-blend-difference" />}
+                              </button>
+                           ))}
+                        </div>
+                     </div>
+
+                     {/* Display Options */}
+                     <div className="space-y-3">
+                        <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Display</label>
+                        <label className="flex items-center justify-between p-3 rounded-lg bg-zinc-800/50 border border-zinc-700/50 cursor-pointer hover:bg-zinc-800 transition-colors">
+                            <span className="text-sm text-zinc-200">Show Grid Overlay</span>
+                            <div className={`w-10 h-5 rounded-full p-0.5 transition-colors ${settings.showGrid ? getBgClass() : 'bg-zinc-600'}`}>
+                               <div className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${settings.showGrid ? 'translate-x-5' : 'translate-x-0'}`}></div>
+                               <input 
+                                  type="checkbox" 
+                                  checked={settings.showGrid}
+                                  onChange={(e) => updateSettings({ showGrid: e.target.checked })}
+                                  className="hidden"
+                               />
+                            </div>
+                        </label>
+                     </div>
+
+                     {/* Export Format */}
+                     <div className="space-y-3">
+                        <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Default Export Format</label>
+                        <div className="grid grid-cols-2 gap-3">
+                           <button 
+                             onClick={() => updateSettings({ exportFormat: 'png' })}
+                             className={`flex items-center justify-center p-3 rounded-lg border transition-all ${settings.exportFormat === 'png' ? `bg-${theme}-500/10 ${getBorderClass()} ${getTextClass()}` : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-600'}`}
+                           >
+                              <span className="font-bold">PNG</span>
+                              <span className="ml-2 text-xs opacity-70">High Quality</span>
+                           </button>
+                           <button 
+                             onClick={() => updateSettings({ exportFormat: 'jpeg' })}
+                             className={`flex items-center justify-center p-3 rounded-lg border transition-all ${settings.exportFormat === 'jpeg' ? `bg-${theme}-500/10 ${getBorderClass()} ${getTextClass()}` : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-600'}`}
+                           >
+                              <span className="font-bold">JPEG</span>
+                              <span className="ml-2 text-xs opacity-70">Small Size</span>
+                           </button>
+                        </div>
+                     </div>
+
+                     {/* Filename Prefix */}
+                     <div className="space-y-3">
+                         <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Default Filename Prefix</label>
+                         <div className="relative">
+                            <input 
+                               type="text" 
+                               value={settings.filenamePrefix}
+                               onChange={(e) => updateSettings({ filenamePrefix: e.target.value })}
+                               className={`w-full bg-zinc-800 border-zinc-700 rounded-lg p-3 text-sm text-white focus:ring-1 focus:ring-${theme}-500 focus:border-${theme}-500 outline-none`}
+                               placeholder="e.g. photomini-edit"
+                            />
+                            <div className="absolute right-3 top-3.5 text-xs text-zinc-500 pointer-events-none">
+                               {settings.filenamePrefix}-{new Date().getMinutes()}.{settings.exportFormat}
+                            </div>
+                         </div>
+                     </div>
+                   </>
+                 ) : (
+                    <div className="space-y-6">
+                       <div className="bg-zinc-800/50 rounded-lg p-4 border border-zinc-700/50">
+                          <h4 className="flex items-center gap-2 font-bold text-white mb-2">
+                             <ShieldCheck size={18} className="text-green-500" /> Independent Application
+                          </h4>
+                          <p className="text-sm text-zinc-400 leading-relaxed">
+                             Photomini is an independent project and is <strong>not affiliated with, endorsed by, or sponsored by Google</strong>. This application uses the Gemini API and MediaPipe technologies provided by Google for image processing.
+                          </p>
+                       </div>
+
+                       <div className="bg-zinc-800/50 rounded-lg p-4 border border-zinc-700/50">
+                          <h4 className="flex items-center gap-2 font-bold text-white mb-2">
+                             <Scale size={18} className="text-orange-500" /> User Responsibility
+                          </h4>
+                          <p className="text-sm text-zinc-400 leading-relaxed">
+                             You (the user) are solely responsible for the images you upload and the content you generate. By using this tool, you agree that you have the right to edit the images you upload and that you will not use this tool to generate illegal, harmful, or infringing content.
+                          </p>
+                       </div>
+
+                       <div className="bg-zinc-800/50 rounded-lg p-4 border border-zinc-700/50">
+                          <h4 className="flex items-center gap-2 font-bold text-white mb-2">
+                             <EyeOff size={18} className="text-blue-500" /> Privacy First
+                          </h4>
+                          <p className="text-sm text-zinc-400 leading-relaxed">
+                             Photomini does not store your photos. Image processing happens either locally in your browser (Manual Tools, Face Detection) or is sent ephemerally to the API for AI editing and then discarded.
+                          </p>
+                       </div>
+                    </div>
+                 )}
+              </div>
+              
+              <div className="p-4 bg-zinc-800/50 border-t border-zinc-700 flex justify-end shrink-0">
                  <Button onClick={() => setShowSettings(false)} className="w-full md:w-auto" themeColor={theme}>
                     <Save size={16} className="mr-2" /> Done
                  </Button>
@@ -442,7 +451,7 @@ export default function App() {
                     <div className={`w-16 h-16 border-4 border-${theme}-500/30 border-t-${theme}-500 rounded-full animate-spin mb-4`}></div>
                     <p className={`${getTextClass()} font-medium animate-pulse`}>Photomini AI is thinking...</p>
                     <p className="text-zinc-500 text-sm mt-2">
-                       {modelType === 'pro' ? `Generating ${resolution} Image` : 'Generating Standard Image (~1K)'}
+                       Generating AI Edit...
                     </p>
                  </div>
                )}
@@ -730,100 +739,55 @@ export default function App() {
 
               {activeTab === 'ai' && (
                  <div className="space-y-6 animate-in fade-in slide-in-from-right-5 duration-300">
-                    <div>
-                       <label className="block text-xs font-medium text-zinc-400 uppercase tracking-wider mb-2">
-                          Model Selection
-                       </label>
-                       <div className="grid grid-cols-2 bg-zinc-800 p-1 rounded-lg">
-                          <button 
-                            onClick={() => setModelType('standard')}
-                            className={`px-3 py-2 rounded-md text-sm font-medium transition-all ${modelType === 'standard' ? `bg-[#0f0f11] ${getTextClass()} shadow-sm` : 'text-zinc-400 hover:text-zinc-200'}`}
-                          >
-                             Photomini Std
-                          </button>
-                          <button 
-                            onClick={() => setModelType('pro')}
-                            className={`px-3 py-2 rounded-md text-sm font-medium transition-all ${modelType === 'pro' ? `bg-[#0f0f11] ${getTextClass()} shadow-sm` : 'text-zinc-400 hover:text-zinc-200'}`}
-                          >
-                             Photomini Pro
-                          </button>
+                    
+                    <div className="bg-zinc-800/50 rounded-lg p-3 text-xs text-zinc-400 border border-zinc-700/50">
+                       <div className="flex items-center justify-between mb-2">
+                          <span className="font-medium text-zinc-300">Usage Limits</span>
+                          <span className="bg-zinc-700 text-zinc-300 px-1.5 py-0.5 rounded text-[10px]">FREE</span>
                        </div>
                        
-                       {modelType === 'standard' ? (
-                          <div className="mt-4 bg-zinc-800/50 rounded-lg p-3 text-xs text-zinc-400 border border-zinc-700/50">
-                             <div className="flex items-center justify-between mb-2">
-                                <span className="font-medium text-zinc-300">Standard Mode Limits</span>
-                                <span className="bg-zinc-700 text-zinc-300 px-1.5 py-0.5 rounded text-[10px]">FREE</span>
-                             </div>
-                             
-                             {/* Daily Usage Tracker */}
-                             <div className="mb-3 p-2 bg-zinc-800 rounded border border-zinc-700">
-                                <div className="flex justify-between items-center mb-1">
-                                  <span className="text-[10px] uppercase text-zinc-400 font-bold flex items-center gap-1">
-                                    <BarChart3 size={10} /> Daily Usage
-                                  </span>
-                                  <span className={`text-[10px] font-mono ${dailyUsage >= DAILY_LIMIT ? 'text-red-500' : getTextClass()}`}>
-                                    {dailyUsage} / {DAILY_LIMIT}
-                                  </span>
-                                </div>
-                                <div className="h-2 bg-zinc-700 rounded-full overflow-hidden">
-                                  <div 
-                                    style={{ width: `${Math.min((dailyUsage / DAILY_LIMIT) * 100, 100)}%` }} 
-                                    className={`h-full transition-all duration-500 ${dailyUsage >= DAILY_LIMIT ? 'bg-red-500' : getBgClass()}`}
-                                  ></div>
-                                </div>
-                             </div>
+                       {/* Daily Usage Tracker */}
+                       <div className="mb-3 p-2 bg-zinc-800 rounded border border-zinc-700">
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-[10px] uppercase text-zinc-400 font-bold flex items-center gap-1">
+                              <BarChart3 size={10} /> Daily Usage
+                            </span>
+                            <span className={`text-[10px] font-mono ${dailyUsage >= DAILY_LIMIT ? 'text-red-500' : getTextClass()}`}>
+                              {dailyUsage} / {DAILY_LIMIT}
+                            </span>
+                          </div>
+                          <div className="h-2 bg-zinc-700 rounded-full overflow-hidden">
+                            <div 
+                              style={{ width: `${Math.min((dailyUsage / DAILY_LIMIT) * 100, 100)}%` }} 
+                              className={`h-full transition-all duration-500 ${dailyUsage >= DAILY_LIMIT ? 'bg-red-500' : getBgClass()}`}
+                            ></div>
+                          </div>
+                       </div>
 
-                             <ul className="space-y-1.5">
-                               <li className="flex justify-between">
-                                 <span>Daily Quota:</span>
-                                 <span className="text-zinc-300">250 Requests</span>
-                               </li>
-                               <li className="flex justify-between">
-                                  <span>Rate Limit:</span>
-                                  <span className="text-zinc-300">15 Req / min</span>
-                               </li>
-                               <li className="flex justify-between border-t border-zinc-700/50 pt-1.5 mt-1.5">
-                                  <span>Cost per Edit:</span>
-                                  <span className={`${getTextClass()} font-mono`}>1 Request</span>
-                               </li>
-                                <li className="flex justify-between">
-                                  <span>Token Cost:</span>
-                                  <span className="text-zinc-300 font-mono">~{estimatedTokens} Tokens</span>
-                               </li>
-                             </ul>
-                             <div className={`mt-3 p-2 bg-${theme}-500/5 rounded border border-${theme}-500/10 text-[10px] text-zinc-400 leading-relaxed flex gap-2`}>
-                                <Info size={14} className={`${getTextClass()} shrink-0 mt-0.5`} />
-                                <div>
-                                  <span className={`${getTextClass()} font-medium`}>Why fixed cost?</span> Photomini AI "sees" images by converting them into a fixed package of <strong>258 tokens</strong>, regardless of resolution.
-                                </div>
-                             </div>
+                       <ul className="space-y-1.5">
+                         <li className="flex justify-between">
+                           <span>Daily Quota:</span>
+                           <span className="text-zinc-300">250 Requests</span>
+                         </li>
+                         <li className="flex justify-between">
+                            <span>Rate Limit:</span>
+                            <span className="text-zinc-300">15 Req / min</span>
+                         </li>
+                         <li className="flex justify-between border-t border-zinc-700/50 pt-1.5 mt-1.5">
+                            <span>Cost per Edit:</span>
+                            <span className={`${getTextClass()} font-mono`}>1 Request</span>
+                         </li>
+                          <li className="flex justify-between">
+                            <span>Token Cost:</span>
+                            <span className="text-zinc-300 font-mono">~{estimatedTokens} Tokens</span>
+                         </li>
+                       </ul>
+                       <div className={`mt-3 p-2 bg-${theme}-500/5 rounded border border-${theme}-500/10 text-[10px] text-zinc-400 leading-relaxed flex gap-2`}>
+                          <Info size={14} className={`${getTextClass()} shrink-0 mt-0.5`} />
+                          <div>
+                            <span className={`${getTextClass()} font-medium`}>Why fixed cost?</span> Photomini AI "sees" images by converting them into a fixed package of <strong>258 tokens</strong>, regardless of resolution.
                           </div>
-                       ) : (
-                          <div className="mt-4">
-                             <label className="block text-xs font-medium text-zinc-400 uppercase tracking-wider mb-2">
-                                Output Resolution
-                             </label>
-                             <div className="flex gap-2">
-                                {(['1K', '2K', '4K'] as ImageResolution[]).map((res) => (
-                                   <button
-                                      key={res}
-                                      onClick={() => setResolution(res)}
-                                      className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-all ${
-                                         resolution === res 
-                                            ? `${getBorderClass()} bg-${theme}-500/10 ${getTextClass()}` 
-                                            : 'border-zinc-700 bg-zinc-800/50 text-zinc-400 hover:border-zinc-600'
-                                      }`}
-                                   >
-                                      {res}
-                                   </button>
-                                ))}
-                             </div>
-                             <p className="text-[10px] text-zinc-500 mt-2">
-                                Higher resolutions consume more tokens and may take longer to generate. Requires API Key.
-                             </p>
-                          </div>
-                       )}
+                       </div>
                     </div>
 
                     <div>

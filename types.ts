@@ -35,7 +35,7 @@ export interface BrushSettings {
 
 export const DEFAULT_BRUSH_SETTINGS: BrushSettings = {
   size: 20,
-  color: '#f59e0b', // banana yellow default
+  color: '#f59e0b', // default yellow
   intensity: 10,
 };
 
