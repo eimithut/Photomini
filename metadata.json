@@ -1,0 +1,5 @@
+{
+  "name": "Photomini",
+  "description": "A photo editor powered by Photomini AI (Gemini 2.5 Flash) and Photomini AI Pro (Gemini 3) for intelligent image manipulation.",
+  "requestFramePermissions": []
+}
