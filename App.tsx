@@ -61,7 +61,29 @@ export default function App() {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [settingsTab, setSettingsTab] = useState<'general' | 'legal'>('general');
 
+  // Startup Animation State
+  const [showSplash, setShowSplash] = useState(true);
+  const [splashFading, setSplashFading] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Startup Effect
+  useEffect(() => {
+    // Start shutter open animation after 2.2 seconds
+    const fadeTimer = setTimeout(() => {
+        setSplashFading(true);
+    }, 2200);
+
+    // Remove from DOM after animation completes (1s transition)
+    const removeTimer = setTimeout(() => {
+        setShowSplash(false);
+    }, 3200);
+
+    return () => {
+        clearTimeout(fadeTimer);
+        clearTimeout(removeTimer);
+    };
+  }, []);
 
   useEffect(() => {
     const today = new Date().toDateString();
@@ -241,6 +263,50 @@ export default function App() {
   const themeColors: ThemeColor[] = ['yellow', 'blue', 'green', 'red', 'purple', 'pink', 'orange', 'cyan'];
 
   return (
+    <>
+    {/* --- Startup Splash Screen (Shutter Split Animation) --- */}
+    {showSplash && (
+        <div className="fixed inset-0 z-[100] flex flex-col">
+            {/* Top Shutter Panel */}
+            <div className={`absolute top-0 left-0 w-full h-1/2 bg-[#09090b] z-20 transition-transform duration-1000 ease-[cubic-bezier(0.87,0,0.13,1)] ${splashFading ? '-translate-y-full' : 'translate-y-0'}`}>
+                {/* Border line at the split */}
+                <div className={`absolute bottom-0 w-full h-[1px] bg-zinc-800 transition-opacity duration-300 ${splashFading ? 'opacity-0' : 'opacity-100'}`}></div>
+            </div>
+            
+            {/* Bottom Shutter Panel */}
+            <div className={`absolute bottom-0 left-0 w-full h-1/2 bg-[#09090b] z-20 transition-transform duration-1000 ease-[cubic-bezier(0.87,0,0.13,1)] ${splashFading ? 'translate-y-full' : 'translate-y-0'}`}>
+                 {/* Border line at the split */}
+                 <div className={`absolute top-0 w-full h-[1px] bg-zinc-800 transition-opacity duration-300 ${splashFading ? 'opacity-0' : 'opacity-100'}`}></div>
+            </div>
+
+            {/* Content Layer */}
+            <div className={`absolute inset-0 flex flex-col items-center justify-center z-30 transition-all duration-500 ease-out ${splashFading ? 'opacity-0 scale-90 blur-sm' : 'opacity-100 scale-100 blur-0'}`}>
+                <div className="relative mb-6 group">
+                    {/* Glowing effect behind logo */}
+                    <div className={`absolute inset-0 bg-${theme}-500/30 blur-[40px] rounded-full animate-pulse`}></div>
+                    <div className="relative bg-[#18181b] p-6 rounded-2xl border border-zinc-800 shadow-2xl animate-in zoom-in duration-700">
+                        <Zap size={64} className={getTextClass()} />
+                    </div>
+                </div>
+                
+                <h1 className="text-5xl font-black text-white tracking-tighter mb-2 animate-in slide-in-from-bottom-4 fade-in duration-700 delay-100">
+                    Photomini
+                </h1>
+                
+                <div className="flex flex-col items-center gap-2 animate-in slide-in-from-bottom-4 fade-in duration-700 delay-200">
+                    <p className="text-zinc-500 text-sm font-medium">Intelligent Photo Editor</p>
+                    <div className="mt-6 flex items-center gap-3 opacity-60">
+                        <div className={`h-px w-12 bg-gradient-to-r from-transparent to-${theme}-500`}></div>
+                        <span className="text-[10px] font-mono text-zinc-400 tracking-[0.2em] uppercase">
+                            Developed by Eimithut
+                        </span>
+                        <div className={`h-px w-12 bg-gradient-to-l from-transparent to-${theme}-500`}></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    )}
+
     <div className={`h-[100dvh] bg-[#0f0f11] text-zinc-300 flex flex-col md:flex-row overflow-hidden font-sans selection:${getBgClass()} selection:text-black`}>
       
       {/* --- Settings Modal --- */}
@@ -819,7 +885,13 @@ export default function App() {
             </>
           )}
         </div>
+        
+        {/* Sidebar Footer Credit */}
+        <div className="p-3 border-t border-zinc-800 text-center text-[10px] text-zinc-600 font-mono tracking-wider hover:text-zinc-500 transition-colors cursor-default">
+           &gt;&gt;&gt; DEVELOPED BY EIMITHUT &lt;&lt;&lt;
+        </div>
       </div>
     </div>
+    </>
   );
 }
