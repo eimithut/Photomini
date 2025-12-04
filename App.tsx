@@ -307,6 +307,22 @@ export default function App() {
         </div>
     )}
 
+    {/* --- Error Toast Notification (Fixed Position) --- */}
+    {error && (
+      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[200] flex items-center gap-3 px-4 py-3 bg-zinc-900 border border-red-500/50 rounded-xl shadow-2xl shadow-red-500/10 text-red-200 max-w-[90vw] w-auto animate-in slide-in-from-bottom-5 fade-in duration-300">
+        <div className="p-2 bg-red-500/10 rounded-full shrink-0">
+          <span className="text-xl">⚠️</span>
+        </div>
+        <p className="text-sm font-medium pr-2">{error}</p>
+        <button 
+          onClick={() => setError(null)} 
+          className="ml-auto p-1.5 hover:bg-white/10 rounded-full transition-colors text-red-200 hover:text-white"
+        >
+          <X size={16} />
+        </button>
+      </div>
+    )}
+
     <div className={`h-[100dvh] bg-[#0f0f11] text-zinc-300 flex flex-col md:flex-row overflow-hidden font-sans selection:${getBgClass()} selection:text-black`}>
       
       {/* --- Settings Modal --- */}
@@ -441,6 +457,12 @@ export default function App() {
                              Photomini does not store your photos. Image processing happens either locally in your browser (Manual Tools, Face Detection) or is sent ephemerally to the API for AI editing and then discarded.
                           </p>
                        </div>
+
+                       <div className="pt-6 border-t border-zinc-700/50 text-center">
+                            <p className="text-[10px] font-mono text-zinc-600 tracking-widest uppercase">
+                                &gt;&gt;&gt; DEVELOPED BY EIMITHUT &lt;&lt;&lt;
+                            </p>
+                       </div>
                     </div>
                  )}
               </div>
@@ -559,13 +581,6 @@ export default function App() {
                    style={getFilterStyle()}
                  />
                )}
-            </div>
-          )}
-
-          {error && (
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-lg flex items-center shadow-xl backdrop-blur-md max-w-md animate-in slide-in-from-bottom-5 z-50">
-              <span className="mr-2">⚠️</span> {error}
-              <button onClick={() => setError(null)} className="ml-4 hover:text-white">✕</button>
             </div>
           )}
         </div>
