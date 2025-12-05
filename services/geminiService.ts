@@ -5,13 +5,14 @@ export const editImageWithPhotominiAI = async (
   prompt: string
 ): Promise<string> => {
   
-  // Access the key using process.env.API_KEY as per guidelines
+  // Access the key using process.env.API_KEY as per coding guidelines.
+  // We assume process.env.API_KEY is available and configured in the environment.
   const apiKey = process.env.API_KEY;
 
   // Validation check
   if (!apiKey) {
     throw new Error(
-      "API Key is missing. Please ensure 'process.env.API_KEY' is configured."
+      "API Key is missing. The app is looking for 'process.env.API_KEY'."
     );
   }
 
