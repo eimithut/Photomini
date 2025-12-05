@@ -1,18 +1,24 @@
 import { GoogleGenAI } from "@google/genai";
 
+// Fix for TypeScript build error: "process is not defined"
+declare const process: {
+  env: {
+    API_KEY: string | undefined;
+  }
+};
+
 export const editImageWithPhotominiAI = async (
   imageBase64: string,
   prompt: string
 ): Promise<string> => {
   
-  // Access the key using process.env.API_KEY as per coding guidelines.
-  // We assume process.env.API_KEY is available and configured in the environment.
+  // Access the key using process.env.API_KEY as configured in vite.config.ts
   const apiKey = process.env.API_KEY;
 
-  // Validation check
+  // Validation check with helpful error message
   if (!apiKey) {
     throw new Error(
-      "API Key is missing. The app is looking for 'process.env.API_KEY'."
+      "API Key is missing. The app is looking for 'process.env.API_KEY'. Since you are on Cloudflare Pages, please go to 'Deployments' and click 'Retry deployment' to ensure your environment variables are loaded into the build."
     );
   }
 
