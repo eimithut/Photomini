@@ -1,19 +1,29 @@
 import { GoogleGenAI } from "@google/genai";
 
+// Fix for TypeScript build error: "Cannot find name 'process'."
+declare const process: {
+  env: {
+    API_KEY: string | undefined;
+  }
+};
+
 export const editImageWithPhotominiAI = async (
   imageBase64: string,
   prompt: string
 ): Promise<string> => {
   
-  // Fix: Use process.env.API_KEY as per guidelines. This resolves the TypeScript error with import.meta.env.
-  if (!process.env.API_KEY) {
+  // Access the key using process.env.API_KEY, which is injected by vite.config.ts
+  const apiKey = process.env.API_KEY;
+
+  // Validation check with helpful error message
+  if (!apiKey) {
     throw new Error(
-      "API Key is missing. Please ensure the API_KEY environment variable is set."
+      "API Key is missing. Please ensure your environment variable (API_KEY or VITE_API_KEY) is set in Cloudflare and you have retried the deployment."
     );
   }
 
   // Create new instance using the injected key
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: apiKey });
   
   // Clean base64 string if it contains metadata header
   const cleanBase64 = imageBase64.split(',')[1] || imageBase64;
